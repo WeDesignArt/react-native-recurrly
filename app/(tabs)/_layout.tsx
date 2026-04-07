@@ -46,8 +46,8 @@ return (
           alignItems: 'center',
           justifyContent: 'center',
         }
-         }}> 
-   {tabs.map((tab) => (
+         }}>  
+  {tabs.map((tab) => (
     <Tabs.Screen 
                 key={tab.name}
                 name={tab.name}
