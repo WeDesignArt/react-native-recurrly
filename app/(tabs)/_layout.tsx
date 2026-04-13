@@ -23,7 +23,7 @@ const Tablayout = () => {
    const insets = useSafeAreaInsets();
 
 return (
- <Tabs
+ <Tabs  
   screenOptions={{ 
         headerShown: false,
         tabBarShowLabel: false,

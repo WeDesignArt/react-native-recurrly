@@ -11,7 +11,7 @@ const subscription = () => {
       <Text>subscription</Text>
     </SafeAreaView>
   )
-}
+} 
 
 export default subscription
 
