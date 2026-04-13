@@ -53,7 +53,7 @@ export default function App() {
               </View>
 
               <View className="mb-5">
-                <ListHeading title="Upcoming " />
+                <ListHeading title="Upcoming" />
                 <FlatList
                   data={UPCOMING_SUBSCRIPTIONS}
                   renderItem={({ item }) => (
@@ -69,7 +69,7 @@ export default function App() {
                   }
                 />
               </View>
-              <ListHeading title="All Subscriptions " />
+              <ListHeading title="All Subscriptions" />
             </>
           )}
           data={HOME_SUBSCRIPTIONS}
