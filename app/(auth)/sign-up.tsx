@@ -39,7 +39,7 @@ function BrandBlock({
         </View>
         <View className="gap-3">
           <Text className="auth-wordmark">Recurrly</Text>
-          <Text className="auth-wordmark-sub">Subscription Tracker</Text>
+          <Text className="auth-wordmark-sub">SMART BILLING</Text>
         </View>
       </View>
       <Text className="auth-title">{title}</Text>
