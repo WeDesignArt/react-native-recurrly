@@ -75,11 +75,11 @@
     }
 
     .home-user-name {
-        @apply ml-4 text-2xl font-sans-bold text-primary;
+        @apply ml-4 text-xl font-sans-bold text-primary;
     }
 
     .home-add-icon {
-        @apply size-12;
+        @apply size-8;
     }
 
     .home-balance-card {
@@ -251,7 +251,7 @@
     }
 
     .auth-logo-mark {
-        @apply relative size-14 items-center justify-center rounded-2xl bg-accent;
+        @apply relative size-14 items-center justify-center rounded-bl-4xl rounded-tr-4xl bg-accent;
     }
 
     .auth-logo-mark-text {
@@ -315,7 +315,7 @@
     }
 
     .auth-button-text {
-        @apply text-base font-sans-bold text-primary;
+        @apply text-base font-sans-bold text-white;
     }
 
     .auth-secondary-button {

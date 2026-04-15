@@ -4,7 +4,7 @@ import { formatCurrency } from "@/lib/utils";
 
 const UpcomingSubscriptionCard = ({
   data: { name, daysLeft, price, currency, icon },
-}: UpcomingSubscription) => {
+}: { data: UpcomingSubscription }) => {
   return (
     <View className="upcoming-card">
       <View className="upcoming-row">
