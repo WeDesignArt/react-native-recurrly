@@ -1,10 +1,13 @@
-import { useAuth } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { tabs } from "@/constant/data";
 import { Redirect, Tabs } from "expo-router";
 import { Image, View } from "react-native";
 import { clsx } from "clsx";
+import { useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { usePostHog } from "posthog-react-native";
 import { colors, components } from "@/constant/theme";
+import { SubscriptionsProvider } from "@/context/subscriptions";
 
 const tabBar = components.tabBar;
 
@@ -21,11 +24,24 @@ const TabIcon = ({ focused, icon }: TabIconProps) => {
 const TabLayout = () => {
   const insets = useSafeAreaInsets();
   const { isSignedIn, isLoaded } = useAuth();
+  const { user } = useUser();
+  const posthog = usePostHog();
+
+  // Identify the user in PostHog as soon as their profile is available.
+  // Runs once per distinct user ID (covers both fresh sign-ins and returning sessions).
+  useEffect(() => {
+    if (!user?.id || !posthog) return;
+    posthog.identify(user.id, {
+      email: user.emailAddresses?.[0]?.emailAddress ?? null,
+      name: user.fullName ?? user.firstName ?? null,
+    });
+  }, [user?.id, user?.emailAddresses, user?.firstName, user?.fullName, posthog]);
 
   if (!isLoaded) return null;
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
 
   return (
+    <SubscriptionsProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -64,6 +80,7 @@ const TabLayout = () => {
         />
       ))}
     </Tabs>
+    </SubscriptionsProvider>
   );
 };
 

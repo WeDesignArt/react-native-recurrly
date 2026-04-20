@@ -1,6 +1,7 @@
 import { useSignIn } from "@clerk/expo";
 import { clsx } from "clsx";
 import { type Href, Link, useRouter } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -47,6 +48,7 @@ function BrandBlock({
 export default function SignIn() {
   const { signIn, errors, fetchStatus } = useSignIn();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -122,6 +124,7 @@ export default function SignIn() {
   }
 
   async function finalizeSignIn() {
+    posthog?.capture("user_signed_in", { method: "email_password" });
     await signIn.finalize({
       navigate: ({ session, decorateUrl }) => {
         if (session?.currentTask) return;

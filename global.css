@@ -355,7 +355,7 @@
     }
 
     .modal-container {
-        @apply mt-auto max-h-[85%] rounded-t-3xl bg-background;
+        @apply mt-auto max-h-[85%] rounded-t-3xl bg-card border-t-2 border-b-2 border-x-2 border-black/10;
     }
 
     .modal-header {
