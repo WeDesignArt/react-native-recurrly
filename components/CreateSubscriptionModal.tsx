@@ -20,7 +20,6 @@ import { useSubscriptions } from "@/context/subscriptions";
 
 // ─── icon resolution ──────────────────────────────────────────────────────────
 
-/** Map of lowercase name fragments → local bundled icon assets */
 const LOCAL_ICON_MAP: Record<string, ImageSourcePropType> = {
   spotify: icons.spotify,
   notion: icons.notion,
@@ -39,28 +38,25 @@ const LOCAL_ICON_MAP: Record<string, ImageSourcePropType> = {
   chatgpt: icons.openai,
 };
 
-/**
- * Given a subscription name, return the best icon:
- *   1. Check local asset map (exact or partial match).
- *   2. Fall back to Clearbit Logo API using the first word as the domain.
- */
+const LOGO_DEV_KEY = process.env.EXPO_PUBLIC_LOGO_DEV_KEY ?? "";
+
 function resolveIcon(name: string): ImageSourcePropType {
   const lower = name.trim().toLowerCase();
 
-  // exact match
+  // 1. Local bundled asset — exact match
   if (LOCAL_ICON_MAP[lower]) return LOCAL_ICON_MAP[lower];
 
-  // partial match — check if any known key is a substring of the name
+  // 2. Local bundled asset — partial match (e.g. "Adobe Creative Cloud" → adobe)
   for (const key of Object.keys(LOCAL_ICON_MAP)) {
     if (lower.includes(key)) return LOCAL_ICON_MAP[key];
   }
 
-  // Clearbit fallback: derive domain from the first alphanumeric word
-  const firstWord = lower
-    .split(/\s+/)[0]
-    .replace(/[^a-z0-9]/g, "");
+  // 3. logo.dev fallback — derive domain from first alphanumeric word
+  const firstWord = lower.split(/\s+/)[0].replace(/[^a-z0-9]/g, "");
   const domain = `${firstWord}.com`;
-  return { uri: `https://logo.clearbit.com/${domain}?size=128` };
+  return {
+    uri: `https://img.logo.dev/${domain}?token=${LOGO_DEV_KEY}&format=png&size=128`,
+  };
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -76,21 +72,39 @@ const COLOR_SWATCHES = [
   "#d4a5c9",
   "#a8d8a8",
   "#c9d4f5",
+  "#3D405B",
+  "#F2CC8F",
+  "#E07A5F",
+  "#81B622",
+  "#F4F1DE",
 ];
 
 const CATEGORIES = [
+  "AI Tools",
+  "Entertainment",
+  "Gaming",
   "Productivity",
   "Design",
-  "Entertainment",
   "Developer Tools",
-  "AI Tools",
   "Finance",
   "Health",
   "Education",
+  "Music",
+  "Streaming",
+  "Storage",
+  "News",
+  "Social",
   "Other",
 ];
 
 type Frequency = "Monthly" | "Yearly";
+type Status = "active" | "paused" | "cancelled";
+
+const STATUS_OPTIONS: { value: Status; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "paused", label: "Paused" },
+  { value: "cancelled", label: "Cancelled" },
+];
 
 // ─── component ────────────────────────────────────────────────────────────────
 
@@ -107,7 +121,14 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
   const [color, setColor] = useState(COLOR_SWATCHES[0]);
   const [frequency, setFrequency] = useState<Frequency>("Monthly");
   const [category, setCategory] = useState<string | null>(null);
-  const [errors, setErrors] = useState<{ name?: string; price?: string }>({});
+  const [startDate, setStartDate] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [status, setStatus] = useState<Status>("active");
+  const [errors, setErrors] = useState<{
+    name?: string;
+    price?: string;
+    startDate?: string;
+  }>({});
 
   function reset() {
     setName("");
@@ -115,6 +136,9 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
     setColor(COLOR_SWATCHES[0]);
     setFrequency("Monthly");
     setCategory(null);
+    setStartDate("");
+    setPaymentMethod("");
+    setStatus("active");
     setErrors({});
   }
 
@@ -125,34 +149,43 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
 
   function handleSubmit() {
     const errs: typeof errors = {};
+
     if (!name.trim()) errs.name = "Name is required.";
+
     const parsed = parseFloat(price);
     if (!price) errs.price = "Price is required.";
     else if (isNaN(parsed) || parsed <= 0) errs.price = "Enter a valid price.";
+
+    let resolvedStart = dayjs();
+    if (startDate.trim()) {
+      const parsed = dayjs(startDate.trim(), "MM/DD/YYYY", true);
+      if (!parsed.isValid()) errs.startDate = "Use MM/DD/YYYY format.";
+      else resolvedStart = parsed;
+    }
 
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
       return;
     }
 
-    const now = dayjs();
     const renewalDate =
       frequency === "Monthly"
-        ? now.add(1, "month").toISOString()
-        : now.add(1, "year").toISOString();
+        ? resolvedStart.add(1, "month").toISOString()
+        : resolvedStart.add(1, "year").toISOString();
 
     const sub: Subscription = {
       id: `custom-${Date.now()}`,
       icon: resolveIcon(name),
       name: name.trim(),
-      price: parsed,
+      price: parseFloat(price),
       currency: "USD",
       billing: frequency,
       color,
       category: category ?? undefined,
-      status: "active",
-      startDate: now.toISOString(),
+      status,
+      startDate: resolvedStart.toISOString(),
       renewalDate,
+      paymentMethod: paymentMethod.trim() || undefined,
     };
 
     addSubscription(sub);
@@ -168,9 +201,9 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
       onRequestClose={handleClose}
       statusBarTranslucent
     >
-      {/* Tap overlay to dismiss */}
+      {/* Overlay — tap to dismiss */}
       <Pressable className="modal-overlay" onPress={handleClose}>
-        {/* Stop propagation so taps inside the sheet don't dismiss */}
+        {/* Inner pressable stops propagation so sheet taps don't close */}
         <Pressable onPress={(e) => e.stopPropagation()}>
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -196,19 +229,16 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                 contentContainerStyle={{ paddingBottom: 32 }}
               >
                 <View className="modal-body">
-                  {/* Name */}
+
+                  {/* ── Name ── */}
                   <View className="auth-field">
                     <Text className="auth-label">Name</Text>
                     <TextInput
-                      className={clsx(
-                        "auth-input",
-                        errors.name && "auth-input-error"
-                      )}
+                      className={clsx("auth-input", errors.name && "auth-input-error")}
                       value={name}
                       onChangeText={(v) => {
                         setName(v);
-                        if (errors.name)
-                          setErrors((prev) => ({ ...prev, name: undefined }));
+                        if (errors.name) setErrors((p) => ({ ...p, name: undefined }));
                       }}
                       placeholder="e.g. Netflix, Spotify…"
                       placeholderTextColor={colors.mutedForeground}
@@ -216,72 +246,95 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                       autoCorrect={false}
                       returnKeyType="next"
                     />
-                    {errors.name && (
-                      <Text className="auth-error">{errors.name}</Text>
-                    )}
+                    {errors.name && <Text className="auth-error">{errors.name}</Text>}
                   </View>
 
-                  {/* Price */}
+                  {/* ── Price ── */}
                   <View className="auth-field">
                     <Text className="auth-label">Price (USD)</Text>
                     <TextInput
-                      className={clsx(
-                        "auth-input",
-                        errors.price && "auth-input-error"
-                      )}
+                      className={clsx("auth-input", errors.price && "auth-input-error")}
                       value={price}
                       onChangeText={(v) => {
                         setPrice(v);
-                        if (errors.price)
-                          setErrors((prev) => ({ ...prev, price: undefined }));
+                        if (errors.price) setErrors((p) => ({ ...p, price: undefined }));
                       }}
                       placeholder="0.00"
                       placeholderTextColor={colors.mutedForeground}
                       keyboardType="decimal-pad"
-                      returnKeyType="done"
+                      returnKeyType="next"
                     />
-                    {errors.price && (
-                      <Text className="auth-error">{errors.price}</Text>
-                    )}
+                    {errors.price && <Text className="auth-error">{errors.price}</Text>}
                   </View>
 
-                  {/* Color swatches */}
+                  {/* ── Start Date ── */}
                   <View className="auth-field">
-                    <Text className="auth-label">Color</Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        flexWrap: "wrap",
-                        gap: 10,
-                        marginTop: 4,
+                    <Text className="auth-label">Start Date</Text>
+                    <TextInput
+                      className={clsx("auth-input", errors.startDate && "auth-input-error")}
+                      value={startDate}
+                      onChangeText={(v) => {
+                        setStartDate(v);
+                        if (errors.startDate) setErrors((p) => ({ ...p, startDate: undefined }));
                       }}
-                    >
-                      {COLOR_SWATCHES.map((swatch) => (
+                      placeholder="MM/DD/YYYY  (leave blank for today)"
+                      placeholderTextColor={colors.mutedForeground}
+                      keyboardType="numbers-and-punctuation"
+                      returnKeyType="next"
+                      maxLength={10}
+                    />
+                    {errors.startDate
+                      ? <Text className="auth-error">{errors.startDate}</Text>
+                      : <Text className="auth-helper">When did this subscription start?</Text>
+                    }
+                  </View>
+
+                  {/* ── Payment Method ── */}
+                  <View className="auth-field">
+                    <Text className="auth-label">Payment Method</Text>
+                    <TextInput
+                      className="auth-input"
+                      value={paymentMethod}
+                      onChangeText={setPaymentMethod}
+                      placeholder="e.g. Visa ending in 4242"
+                      placeholderTextColor={colors.mutedForeground}
+                      autoCapitalize="words"
+                      autoCorrect={false}
+                      returnKeyType="done"
+                    />
+                  </View>
+
+                  {/* ── Status ── */}
+                  <View className="auth-field">
+                    <Text className="auth-label">Status</Text>
+                    <View className="picker-row">
+                      {STATUS_OPTIONS.map((opt) => (
                         <Pressable
-                          key={swatch}
-                          onPress={() => setColor(swatch)}
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 18,
-                            backgroundColor: swatch,
-                            borderWidth: color === swatch ? 3 : 1.5,
-                            borderColor:
-                              color === swatch
-                                ? colors.primary
-                                : "rgba(0,0,0,0.12)",
-                          }}
+                          key={opt.value}
+                          className={clsx(
+                            "picker-option",
+                            status === opt.value && "picker-option-active"
+                          )}
+                          onPress={() => setStatus(opt.value)}
                           accessibilityRole="radio"
-                          accessibilityLabel={`Color ${swatch}`}
-                          accessibilityState={{ selected: color === swatch }}
-                        />
+                          accessibilityState={{ selected: status === opt.value }}
+                        >
+                          <Text
+                            className={clsx(
+                              "picker-option-text",
+                              status === opt.value && "picker-option-text-active"
+                            )}
+                          >
+                            {opt.label}
+                          </Text>
+                        </Pressable>
                       ))}
                     </View>
                   </View>
 
-                  {/* Frequency */}
+                  {/* ── Billing Frequency ── */}
                   <View className="auth-field">
-                    <Text className="auth-label">Billing frequency</Text>
+                    <Text className="auth-label">Billing Frequency</Text>
                     <View className="picker-row">
                       {(["Monthly", "Yearly"] as Frequency[]).map((opt) => (
                         <Pressable
@@ -307,7 +360,31 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                     </View>
                   </View>
 
-                  {/* Category chips */}
+                  {/* ── Color Swatches ── */}
+                  <View className="auth-field">
+                    <Text className="auth-label">Color</Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
+                      {COLOR_SWATCHES.map((swatch) => (
+                        <Pressable
+                          key={swatch}
+                          onPress={() => setColor(swatch)}
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: swatch,
+                            borderWidth: color === swatch ? 3 : 1.5,
+                            borderColor: color === swatch ? colors.primary : "rgba(0,0,0,0.12)",
+                          }}
+                          accessibilityRole="radio"
+                          accessibilityLabel={`Color ${swatch}`}
+                          accessibilityState={{ selected: color === swatch }}
+                        />
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* ── Category Chips ── */}
                   <View className="auth-field">
                     <Text className="auth-label">Category</Text>
                     <View className="category-scroll">
@@ -318,11 +395,7 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                             "category-chip",
                             category === cat && "category-chip-active"
                           )}
-                          onPress={() =>
-                            setCategory((curr) =>
-                              curr === cat ? null : cat
-                            )
-                          }
+                          onPress={() => setCategory((curr) => (curr === cat ? null : cat))}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: category === cat }}
                         >
@@ -339,7 +412,7 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                     </View>
                   </View>
 
-                  {/* Preview */}
+                  {/* ── Live Preview ── */}
                   {!!name.trim() && (
                     <View
                       style={{
@@ -349,6 +422,8 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                         padding: 16,
                         borderRadius: 16,
                         backgroundColor: color,
+                        borderWidth: 1,
+                        borderColor: "rgba(0,0,0,0.08)",
                       }}
                     >
                       <Image
@@ -358,11 +433,7 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                       />
                       <View style={{ flex: 1 }}>
                         <Text
-                          style={{
-                            fontSize: 16,
-                            fontFamily: "sans-bold",
-                            color: colors.primary,
-                          }}
+                          style={{ fontSize: 16, fontFamily: "sans-bold", color: colors.primary }}
                           numberOfLines={1}
                         >
                           {name}
@@ -380,19 +451,13 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                           </Text>
                         )}
                       </View>
-                      <Text
-                        style={{
-                          fontSize: 16,
-                          fontFamily: "sans-bold",
-                          color: colors.primary,
-                        }}
-                      >
+                      <Text style={{ fontSize: 16, fontFamily: "sans-bold", color: colors.primary }}>
                         ${parseFloat(price || "0").toFixed(2)}
                       </Text>
                     </View>
                   )}
 
-                  {/* Submit */}
+                  {/* ── Submit ── */}
                   <Pressable
                     className="auth-button"
                     style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
@@ -402,6 +467,7 @@ export default function CreateSubscriptionModal({ visible, onClose }: Props) {
                   >
                     <Text className="auth-button-text">Add Subscription</Text>
                   </Pressable>
+
                 </View>
               </ScrollView>
             </View>

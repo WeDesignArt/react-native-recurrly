@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "react-native-recurrly",
-    "slug": "react-native-recurrly",
+    "name": "Recurly",
+    "slug": "recurly",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "reactnativerecurrly",
+    "icon": "./assets/icons/logo.png",
+    "scheme": "recurly",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -18,7 +18,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
+      "edgeToEdgeEnabled": true,  
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -30,7 +30,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/splash-pattern.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
