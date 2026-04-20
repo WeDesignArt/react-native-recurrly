@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePostHog } from "posthog-react-native";
 import { colors, components } from "@/constant/theme";
+import { SubscriptionsProvider } from "@/context/subscriptions";
 
 const tabBar = components.tabBar;
 
@@ -40,6 +41,7 @@ const TabLayout = () => {
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
 
   return (
+    <SubscriptionsProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -78,6 +80,7 @@ const TabLayout = () => {
         />
       ))}
     </Tabs>
+    </SubscriptionsProvider>
   );
 };
 
